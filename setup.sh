@@ -30,9 +30,9 @@ setup_directories() {
     # 创建 Tailscale 数据目录
     mkdir -p tailscale
     
-    # 生成随机用户名和密码
+    # 生成随机用户名和密码（避免特殊字符）
     PROXY_USER="user_$(openssl rand -hex 4)"
-    PROXY_PASS="$(openssl rand -base64 12)"
+    PROXY_PASS="$(openssl rand -hex 12)"
     
     # 创建 .env 文件
     cat > .env << EOL
@@ -94,7 +94,7 @@ show_config() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if TAILSCALE_IP=$(docker-compose exec -T tailscale tailscale ip 2>/dev/null); then
+        if TAILSCALE_IP=$(docker-compose exec -T tailscale tailscale ip -4 2>/dev/null); then
             break
         fi
         sleep 5
