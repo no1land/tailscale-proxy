@@ -1,0 +1,36 @@
+
+version: '3'
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: docker-tailscale-gost
+    volumes:
+      - ./tailscale:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    network_mode: "host"
+    privileged: true
+    environment:
+      - TS_AUTH_KEY=${TAILSCALE_AUTH_KEY}
+    restart: unless-stopped
+
+  gost:
+    image: ginuerzh/gost:latest
+    network_mode: "host"
+    depends_on:
+      - tailscale
+    command: -L=socks5://${PROXY_USER}:${PROXY_PASS}@:1080
+    restart: unless-stopped
+
+# 使用说明：
+
+# 1. 编辑现有的 .env 文件，添加代理认证信息：
+# TAILSCALE_AUTH_KEY=你现有的密钥
+# PROXY_USER=生成的用户名
+# PROXY_PASS=生成的密码
+
+# 2. 生成随机认证信息(在终端运行)：
+# echo "PROXY_USER=user_$(openssl rand -hex 4)" >> .env
+# echo "PROXY_PASS=$(openssl rand -base64 12)" >> .env
+
+# 3. 重启 gost 服务：
+# docker-compose restart gost
