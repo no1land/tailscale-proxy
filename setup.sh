@@ -88,6 +88,19 @@ check_services() {
 
 # 显示配置信息
 show_config() {
+    # 获取 Tailscale IP
+    local TAILSCALE_IP=""
+    local max_attempts=12
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if TAILSCALE_IP=$(docker-compose exec -T tailscale tailscale ip 2>/dev/null); then
+            break
+        fi
+        sleep 5
+        attempt=$((attempt + 1))
+    done
+
     echo -e "${GREEN}\n部署完成！${NC}"
     echo -e "\n代理配置信息："
     echo "------------------------"
@@ -95,7 +108,16 @@ show_config() {
     echo "代理端口: 1080"
     echo "用户名: $PROXY_USER"
     echo "密码: $PROXY_PASS"
+    if [ ! -z "$TAILSCALE_IP" ]; then
+        echo "Tailscale IP: $TAILSCALE_IP"
+    fi
     echo "------------------------"
+    
+    echo -e "\n测试命令："
+    if [ ! -z "$TAILSCALE_IP" ]; then
+        echo "curl -4 --socks5 $PROXY_USER:$PROXY_PASS@$TAILSCALE_IP:1080 http://ip.gs"
+    fi
+    
     echo -e "\n代理管理命令："
     echo "查看状态: docker-compose ps"
     echo "查看日志: docker-compose logs"
