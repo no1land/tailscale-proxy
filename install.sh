@@ -30,21 +30,13 @@ os_check() {
     fi
 }
 
-# 检查系统架构
-arch_check() {
-    arch=$(arch)
-    if [[ $arch != "x86_64" && $arch != "aarch64" ]]; then
-        echo -e "${red}不支持的系统架构: ${arch}${plain}\n" && exit 1
-    fi
-}
-
-# 检查依赖并安装
-install_dependencies() {
+# 安装依赖
+install_base() {
     if [[ ${release} == "centos" ]]; then
         yum install -y wget curl tar
     else
-        apt-get update
-        apt-get install -y wget curl tar
+        apt update
+        apt install -y wget curl tar
     fi
 }
 
@@ -64,52 +56,58 @@ install_docker() {
     fi
 }
 
-# 部署服务
-deploy_service() {
-    # 创建工作目录
-    mkdir -p /opt/tailscale-proxy
+# 下载配置文件
+download_files() {
     cd /opt/tailscale-proxy
 
-    # 下载配置文件
-    wget -N --no-check-certificate https://raw.githubusercontent.com/your-repo/docker-compose.yml
-    wget -N --no-check-certificate https://raw.githubusercontent.com/your-repo/setup.sh
-    chmod +x setup.sh
-
-    # 获取 Tailscale 密钥
-    echo -e "${yellow}请输入 Tailscale 认证密钥 (从 https://login.tailscale.com/admin/settings/keys 获取)：${plain}"
-    read -p "密钥: " auth_key
+    GITHUB_URL="https://raw.githubusercontent.com/no1land/tailscale-proxy/main"
     
-    if [[ -z "${auth_key}" ]]; then
-        echo -e "${red}错误：密钥不能为空${plain}" && exit 1
+    echo -e "${yellow}下载配置文件...${plain}"
+    
+    wget -N --no-check-certificate "${GITHUB_URL}/docker-compose.yml"
+    if [ $? -ne 0 ]; then
+        echo -e "${red}下载 docker-compose.yml 失败，请检查网络${plain}"
+        exit 1
     fi
-
-    # 运行安装脚本
-    ./setup.sh "${auth_key}"
-}
-
-# 显示结果
-show_result() {
-    echo -e "\n${green}安装完成！${plain}"
-    echo -e "------------------------------------------------"
-    echo -e "代理配置信息："
-    echo -e "代理类型: SOCKS5"
-    echo -e "代理端口: 1080"
-    echo -e "用户名: $(grep PROXY_USER /opt/tailscale-proxy/.env | cut -d= -f2)"
-    echo -e "密码: $(grep PROXY_PASS /opt/tailscale-proxy/.env | cut -d= -f2)"
-    echo -e "------------------------------------------------"
-}
-
-# 主函数
-main() {
-    clear
-    echo -e "${green}开始安装 Tailscale + GOST 代理服务...${plain}"
     
-    os_check
-    arch_check
-    install_dependencies
-    install_docker
-    deploy_service
-    show_result
+    wget -N --no-check-certificate "${GITHUB_URL}/setup.sh"
+    if [ $? -ne 0 ]; then
+        echo -e "${red}下载 setup.sh 失败，请检查网络${plain}"
+        exit 1
+    fi
+    chmod +x setup.sh
 }
 
-main "$@"
+# 主程序
+echo -e "${green}开始安装...${plain}"
+
+# 检查系统
+os_check
+install_base
+
+# 安装 Docker
+install_docker
+
+# 创建目录
+mkdir -p /opt/tailscale-proxy
+cd /opt/tailscale-proxy
+
+# 下载文件
+download_files
+
+# 获取密钥
+echo -e "${yellow}请输入 Tailscale 认证密钥 (从 https://login.tailscale.com/admin/settings/keys 获取)：${plain}"
+read -p "密钥: " auth_key
+
+if [[ -z "${auth_key}" ]]; then
+    echo -e "${red}错误：密钥不能为空${plain}"
+    exit 1
+fi
+
+# 运行安装脚本
+./setup.sh "${auth_key}"
+
+if [ $? -ne 0 ]; then
+    echo -e "${red}安装失败，请检查日志输出${plain}"
+    exit 1
+fi
