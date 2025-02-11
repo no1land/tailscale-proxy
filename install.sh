@@ -8,7 +8,7 @@ plain='\033[0m'
 
 # 检测是否为 Root（非 macOS）
 if [[ "$(uname)" != "Darwin" && $EUID -ne 0 ]]; then
-    echo -e "${red}错误：${plain} Linux 系统必须使用 root 用户运行此脚本！\n" 
+    echo -e "${red}错误：${plain} Linux 系统必须使用 root 用户运行此脚本！\n"
     exit 1
 fi
 
@@ -68,15 +68,73 @@ install_docker() {
     else
         if ! command -v docker >/dev/null 2>&1; then
             echo -e "${yellow}正在安装 Docker...${plain}"
-            curl -fsSL https://get.docker.com | bash -s docker
+            if ! curl -fsSL https://get.docker.com -o docker_install.sh; then # 添加 curl 错误检查
+                echo -e "${red}错误：Docker 安装脚本下载失败，请检查网络连接。${plain}"
+                exit 1
+            fi
+            if ! bash docker_install.sh; then # 保留原有的安装方式
+                echo -e "${red}错误：Docker 安装脚本执行失败，请检查错误信息或手动安装。${plain}"
+                rm -f docker_install.sh # 清理下载的安装脚本
+                exit 1
+            fi
+            rm -f docker_install.sh # 清理下载的安装脚本
             systemctl enable docker
             systemctl start docker
         fi
-        
+    fi
+
+    # 检查并安装 Docker Compose
+    if [[ ${release} == "mac" ]]; then
         if ! command -v docker-compose >/dev/null 2>&1; then
             echo -e "${yellow}正在安装 Docker Compose...${plain}"
-            curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            chmod +x /usr/local/bin/docker-compose
+            # 尝试使用 Homebrew 安装 Docker Compose
+            if command -v brew >/dev/null 2>&1; then
+                echo -e "${yellow}使用 Homebrew 安装 Docker Compose...${plain}"
+                if ! brew install docker-compose; then
+                    echo -e "${red}错误：使用 Homebrew 安装 Docker Compose 失败，将尝试手动下载安装。${plain}"
+                    # 回退到手动下载安装
+                    local compose_url="https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)"
+                    if ! curl -L "${compose_url}" -o /usr/local/bin/docker-compose; then # 添加 curl 错误检查
+                        echo -e "${red}错误：Docker Compose 下载失败，请检查网络连接或手动下载。${plain}"
+                        echo -e "${yellow}请访问 Docker Compose 官方 Release 页面手动下载: https://github.com/docker/compose/releases${plain}" # 添加手动下载链接
+                        exit 1
+                    fi
+                    if ! chmod +x /usr/local/bin/docker-compose; then
+                        echo -e "${red}错误：Docker Compose 添加执行权限失败，请检查 /usr/local/bin 目录权限或手动处理。${plain}"
+                        exit 1
+                    fi
+                else
+                    echo -e "${green}Docker Compose 通过 Homebrew 安装成功!${plain}"
+                fi
+            else
+                # 如果没有 Homebrew，则手动下载安装
+                echo -e "${yellow}未检测到 Homebrew，使用手动下载方式安装 Docker Compose...${plain}"
+                local compose_url="https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)"
+                if ! curl -L "${compose_url}" -o /usr/local/bin/docker-compose; then # 添加 curl 错误检查
+                    echo -e "${red}错误：Docker Compose 下载失败，请检查网络连接或手动下载。${plain}"
+                    echo -e "${yellow}请访问 Docker Compose 官方 Release 页面手动下载: https://github.com/docker/compose/releases${plain}" # 添加手动下载链接
+                    exit 1
+                fi
+                if ! chmod +x /usr/local/bin/docker-compose; then
+                    echo -e "${red}错误：Docker Compose 添加执行权限失败，请检查 /usr/local/bin 目录权限或手动处理。${plain}"
+                    exit 1
+                fi
+                echo -e "${green}Docker Compose 安装成功!${plain}"
+            fi
+        fi
+    else
+        if ! command -v docker-compose >/dev/null 2>&1; then
+            echo -e "${yellow}正在安装 Docker Compose...${plain}"
+            local compose_url="https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)"
+            if ! curl -L "${compose_url}" -o /usr/local/bin/docker-compose; then # 添加 curl 错误检查
+                echo -e "${red}错误：Docker Compose 下载失败，请检查网络连接或手动下载。${plain}"
+                exit 1
+            fi
+            if ! chmod +x /usr/local/bin/docker-compose; then
+                echo -e "${red}错误：Docker Compose 添加执行权限失败，请检查 /usr/local/bin 目录权限或手动处理。${plain}"
+                exit 1
+            fi
+            chmod +x /usr/local/bin/docker-compose # 保留原有的 chmod
         fi
     fi
 }
