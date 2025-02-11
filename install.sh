@@ -6,12 +6,17 @@ green='\033[0;32m'
 yellow='\033[0;33m'
 plain='\033[0m'
 
-# 检测是否为 Root
-[[ $EUID -ne 0 ]] && echo -e "${red}错误：${plain} 必须使用 root 用户运行此脚本！\n" && exit 1
+# 检测是否为 Root（非 macOS）
+if [[ "$(uname)" != "Darwin" && $EUID -ne 0 ]]; then
+    echo -e "${red}错误：${plain} Linux 系统必须使用 root 用户运行此脚本！\n" 
+    exit 1
+fi
 
 # 系统检测
 os_check() {
-    if [[ -f /etc/redhat-release ]]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        release="mac"
+    elif [[ -f /etc/redhat-release ]]; then
         release="centos"
     elif cat /etc/issue | grep -q -E -i "debian"; then
         release="debian"
@@ -40,19 +45,35 @@ install_base() {
     fi
 }
 
-# 安装 Docker
+# 检查并安装 Docker
 install_docker() {
-    if ! command -v docker >/dev/null 2>&1; then
-        echo -e "${yellow}正在安装 Docker...${plain}"
-        curl -fsSL https://get.docker.com | bash -s docker
-        systemctl enable docker
-        systemctl start docker
-    fi
-    
-    if ! command -v docker-compose >/dev/null 2>&1; then
-        echo -e "${yellow}正在安装 Docker Compose...${plain}"
-        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        chmod +x /usr/local/bin/docker-compose
+    if [[ ${release} == "mac" ]]; then
+        if ! command -v docker >/dev/null 2>&1; then
+            echo -e "${red}错误：未检测到 Docker Desktop${plain}"
+            echo -e "${yellow}请访问 https://www.docker.com/products/docker-desktop 下载安装 Docker Desktop${plain}"
+            echo -e "${yellow}安装完成后重新运行此脚本${plain}"
+            exit 1
+        else
+            # 检查 Docker 是否正在运行
+            if ! docker info >/dev/null 2>&1; then
+                echo -e "${red}错误：Docker Desktop 未启动${plain}"
+                echo -e "${yellow}请启动 Docker Desktop 后重新运行此脚本${plain}"
+                exit 1
+            fi
+        fi
+    else
+        if ! command -v docker >/dev/null 2>&1; then
+            echo -e "${yellow}正在安装 Docker...${plain}"
+            curl -fsSL https://get.docker.com | bash -s docker
+            systemctl enable docker
+            systemctl start docker
+        fi
+        
+        if ! command -v docker-compose >/dev/null 2>&1; then
+            echo -e "${yellow}正在安装 Docker Compose...${plain}"
+            curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            chmod +x /usr/local/bin/docker-compose
+        fi
     fi
 }
 

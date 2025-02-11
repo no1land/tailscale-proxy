@@ -11,11 +11,17 @@
 - 🔄 自动重启：服务意外停止自动恢复
 - 📝 完整日志：便于问题诊断和监控
 
+
 ## 快速开始
 
-### 一键部署
+### Linux 一键部署
 ```bash
 wget -N --no-check-certificate "https://raw.githubusercontent.com/no1land/tailscale-proxy/main/install.sh" && chmod +x install.sh && ./install.sh
+```
+
+### macOS 一键部署
+```bash
+curl -o install.sh "https://raw.githubusercontent.com/no1land/tailscale-proxy/main/install.sh" && chmod +x install.sh && ./install.sh
 ```
 
 ### 前置条件
@@ -23,9 +29,18 @@ wget -N --no-check-certificate "https://raw.githubusercontent.com/no1land/tailsc
 1. 一个 Tailscale 账号（从 [Tailscale官网](https://tailscale.com) 注册）
 2. Tailscale 认证密钥（从 [密钥页面](https://login.tailscale.com/admin/settings/keys) 获取）
 3. 支持的操作系统：
+   - macOS 10.15+（需要安装 Docker Desktop）
    - Ubuntu 16.04+
    - Debian 9+
    - CentOS 7+
+
+### macOS 用户注意事项
+
+1. 确保已安装 Docker Desktop
+   - 如果未安装，请访问 [Docker Desktop 官网](https://www.docker.com/products/docker-desktop) 下载安装
+   - 安装完成后启动 Docker Desktop
+2. 无需 root 权限，直接在终端运行一键部署命令
+3. 如果提示 Docker 未运行，请先启动 Docker Desktop
 
 ## 使用指南
 
