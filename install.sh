@@ -35,13 +35,17 @@ os_check() {
     fi
 }
 
-# 安装依赖
-install_base() {
-    if [[ ${release} == "centos" ]]; then
+# 检查依赖并安装
+install_dependencies() {
+    if [[ ${release} == "mac" ]]; then
+        if ! command -v wget >/dev/null 2>&1; then
+            echo -e "${yellow}正在使用 curl 下载文件...${plain}"
+        fi
+    elif [[ ${release} == "centos" ]]; then
         yum install -y wget curl tar
     else
-        apt update
-        apt install -y wget curl tar
+        apt-get update
+        apt-get install -y wget curl tar
     fi
 }
 
@@ -77,26 +81,49 @@ install_docker() {
     fi
 }
 
-# 下载配置文件
-download_files() {
-    cd /opt/tailscale-proxy
+# 部署服务
+deploy_service() {
+    if [[ ${release} == "mac" ]]; then
+        # macOS 使用当前目录
+        INSTALL_DIR="$(pwd)/tailscale-proxy"
+        mkdir -p "$INSTALL_DIR"
+        cd "$INSTALL_DIR"
+    else
+        # Linux 使用 /opt 目录
+        INSTALL_DIR="/opt/tailscale-proxy"
+        mkdir -p "$INSTALL_DIR"
+        cd "$INSTALL_DIR"
+    fi
 
-    GITHUB_URL="https://raw.githubusercontent.com/no1land/tailscale-proxy/main"
-    
+    # 下载配置文件
     echo -e "${yellow}下载配置文件...${plain}"
     
-    wget -N --no-check-certificate "${GITHUB_URL}/docker-compose.yml"
+    GITHUB_URL="https://raw.githubusercontent.com/no1land/tailscale-proxy/main"
+    
+    curl -o docker-compose.yml "${GITHUB_URL}/docker-compose.yml"
     if [ $? -ne 0 ]; then
         echo -e "${red}下载 docker-compose.yml 失败，请检查网络${plain}"
         exit 1
     fi
     
-    wget -N --no-check-certificate "${GITHUB_URL}/setup.sh"
+    curl -o setup.sh "${GITHUB_URL}/setup.sh"
     if [ $? -ne 0 ]; then
         echo -e "${red}下载 setup.sh 失败，请检查网络${plain}"
         exit 1
     fi
     chmod +x setup.sh
+
+    # 获取 Tailscale 密钥
+    echo -e "${yellow}请输入 Tailscale 认证密钥 (从 https://login.tailscale.com/admin/settings/keys 获取)：${plain}"
+    read -p "密钥: " auth_key
+    
+    if [[ -z "${auth_key}" ]]; then
+        echo -e "${red}错误：密钥不能为空${plain}"
+        exit 1
+    fi
+
+    # 运行安装脚本
+    ./setup.sh "${auth_key}"
 }
 
 # 主程序
@@ -104,31 +131,6 @@ echo -e "${green}开始安装...${plain}"
 
 # 检查系统
 os_check
-install_base
-
-# 安装 Docker
+install_dependencies
 install_docker
-
-# 创建目录
-mkdir -p /opt/tailscale-proxy
-cd /opt/tailscale-proxy
-
-# 下载文件
-download_files
-
-# 获取密钥
-echo -e "${yellow}请输入 Tailscale 认证密钥 (从 https://login.tailscale.com/admin/settings/keys 获取)：${plain}"
-read -p "密钥: " auth_key
-
-if [[ -z "${auth_key}" ]]; then
-    echo -e "${red}错误：密钥不能为空${plain}"
-    exit 1
-fi
-
-# 运行安装脚本
-./setup.sh "${auth_key}"
-
-if [ $? -ne 0 ]; then
-    echo -e "${red}安装失败，请检查日志输出${plain}"
-    exit 1
-fi
+deploy_service
