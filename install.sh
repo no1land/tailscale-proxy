@@ -38,9 +38,9 @@ os_check() {
 # 检查依赖并安装
 install_dependencies() {
     if [[ ${release} == "mac" ]]; then
-        if ! command -v wget >/dev/null 2>&1; then
-            echo -e "${yellow}正在使用 curl 下载文件...${plain}"
-        fi
+        echo -e "${yellow}检查依赖...${plain}"
+        # macOS 不需要安装额外依赖
+        return 0
     elif [[ ${release} == "centos" ]]; then
         yum install -y wget curl tar
     else
@@ -80,6 +80,13 @@ install_docker() {
         fi
     fi
 }
+
+# 设置安装目录
+if [[ ${release} == "mac" ]]; then
+    INSTALL_DIR="$(pwd)/tailscale-proxy"
+else
+    INSTALL_DIR="/opt/tailscale-proxy"
+fi
 
 # 部署服务
 deploy_service() {
