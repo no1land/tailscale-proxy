@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # 颜色设置
 RED="\033[31m"
 GREEN="\033[32m"
@@ -12,6 +11,9 @@ if [ -z "$1" ]; then
     echo "使用方法: $0 <TAILSCALE_AUTH_KEY>"
     exit 1
 fi
+
+# 获取当前工作目录的绝对路径
+CURRENT_DIR=$(pwd)
 
 # 检查 Docker 是否已安装
 check_docker() {
@@ -40,6 +42,60 @@ TAILSCALE_AUTH_KEY=$1
 PROXY_USER=$PROXY_USER
 PROXY_PASS=$PROXY_PASS
 EOL
+}
+
+# 设置开机自启动
+setup_autostart() {
+    echo -e "${YELLOW}设置开机自启动...${NC}"
+    
+    # 创建 systemd 服务文件
+    SERVICE_FILE="/etc/systemd/system/tailscale-proxy.service"
+    
+    # 检查是否有 root 权限
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${YELLOW}需要 root 权限来创建系统服务，使用 sudo...${NC}"
+        cat > /tmp/tailscale-proxy.service << EOL
+[Unit]
+Description=Tailscale Proxy Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=${CURRENT_DIR}
+ExecStart=/usr/bin/docker-compose up -d
+ExecStop=/usr/bin/docker-compose down
+
+[Install]
+WantedBy=multi-user.target
+EOL
+        sudo mv /tmp/tailscale-proxy.service ${SERVICE_FILE}
+        sudo systemctl daemon-reload
+        sudo systemctl enable tailscale-proxy.service
+    else
+        # 直接创建服务文件
+        cat > ${SERVICE_FILE} << EOL
+[Unit]
+Description=Tailscale Proxy Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=${CURRENT_DIR}
+ExecStart=/usr/bin/docker-compose up -d
+ExecStop=/usr/bin/docker-compose down
+
+[Install]
+WantedBy=multi-user.target
+EOL
+        systemctl daemon-reload
+        systemctl enable tailscale-proxy.service
+    fi
+    
+    echo -e "${GREEN}已设置系统服务 tailscale-proxy.service 开机自启动${NC}"
 }
 
 # 启动服务
@@ -100,7 +156,7 @@ show_config() {
         sleep 5
         attempt=$((attempt + 1))
     done
-
+    
     echo -e "${GREEN}\n部署完成！${NC}"
     echo -e "\n代理配置信息："
     echo "------------------------"
@@ -124,6 +180,9 @@ show_config() {
     echo "重启服务: docker-compose restart"
     echo "停止服务: docker-compose down"
     echo "启动服务: docker-compose up -d"
+    
+    echo -e "\n服务已设置为开机自启动"
+    echo "查看服务状态: sudo systemctl status tailscale-proxy.service"
 }
 
 # 主函数
@@ -134,6 +193,7 @@ main() {
     setup_directories "$1"
     start_services
     check_services
+    setup_autostart
     show_config
 }
 
