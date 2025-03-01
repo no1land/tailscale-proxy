@@ -89,7 +89,7 @@ docker-compose down
 
 # 启动服务
 docker-compose up -d
-```
+
 # 查看ip
 docker exec -it tailscale-proxy-tailscale-1 tailscale ip
 or
@@ -97,6 +97,9 @@ docker exec -it tailscale-proxy-tailscale-1 tailscale status
 
 # 登陆
 docker exec -it tailscale-proxy-tailscale-1 tailscale up
+
+```
+
 
 
 
