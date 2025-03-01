@@ -31,6 +31,7 @@ check_docker() {
 setup_directories() {
     # 创建 Tailscale 数据目录
     mkdir -p tailscale
+    mkdir -p /var/lib/tailscale
     
     # 生成随机用户名和密码（避免特殊字符）
     PROXY_USER="user_$(openssl rand -hex 4)"
