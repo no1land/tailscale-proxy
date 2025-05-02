@@ -149,6 +149,8 @@ rm -rf /opt/tailscale-proxy
 apt-get purge -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 apt-get autoremove -y
 ```
+## 测试
+This project is tested with BrowserStack.
 
 ## 项目结构
 
